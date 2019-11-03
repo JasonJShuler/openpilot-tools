@@ -3,11 +3,14 @@ import os
 import sys
 import matplotlib.pyplot as plt
 import numpy as np
-import selfdrive.messaging as messaging
-from selfdrive.services import service_list
+import cereal.messaging as messaging
 import time
-import zmq
 
+
+# tool to plot one or more signals live. Call ex:
+#./rqplot.py log.carState.vEgo log.carState.aEgo
+
+# TODO: can this tool consume 10x less cpu?
 
 def recursive_getattr(x, name):
    l = name.split('.')
@@ -18,7 +21,7 @@ def recursive_getattr(x, name):
 
 
 if __name__ == "__main__":
-  poller = zmq.Poller()
+  poller = messaging.Poller()
 
   services = []
   fields = []
@@ -41,7 +44,7 @@ if __name__ == "__main__":
     sub_split = sub.split(".")
     services.append(sub_split[0])
     fields.append(".".join(sub_split[1:]))
-    subs.append(messaging.sub_sock(service_list[sub_split[0]].port, poller))
+    subs.append(messaging.sub_sock(sub_split[0], poller))
 
     x.append(np.ones(LEN)*np.nan)
     y.append(np.ones(LEN)*np.nan)
@@ -55,11 +58,11 @@ if __name__ == "__main__":
   ax.set_xlabel('time [s]')
 
   while 1:
-    print 1./(time.time() - cur_t)
+    print(1./(time.time() - cur_t))
     cur_t = time.time()
     for i, s in enumerate(subs):
-      #msg = messaging.recv_sock(s)
-      msg = messaging.recv_one_or_none(s)
+      msg = messaging.recv_sock(s)
+      #msg = messaging.recv_one_or_none(s)
       if msg is not None:
         x[i] = np.append(x[i], getattr(msg, 'logMonoTime') / float(1e9))
         x[i] = np.delete(x[i], 0)
@@ -76,5 +79,5 @@ if __name__ == "__main__":
     fig.canvas.flush_events()
 
     # just a bit of wait to avoid 100% CPU usage
-    time.sleep(0.0001)
+    time.sleep(0.001)
 
